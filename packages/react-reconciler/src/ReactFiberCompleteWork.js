@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-present, Facebook, Inc.
+ * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -14,17 +14,16 @@ import type {
   Instance,
   Type,
   Props,
-  UpdatePayload,
   Container,
   ChildSet,
-  HostContext,
 } from './ReactFiberHostConfig';
 
-import {enableProfilerTimer} from 'shared/ReactFeatureFlags';
 import {
   IndeterminateComponent,
   FunctionalComponent,
+  FunctionalComponentLazy,
   ClassComponent,
+  ClassComponentLazy,
   HostRoot,
   HostComponent,
   HostText,
@@ -35,11 +34,14 @@ import {
   Fragment,
   Mode,
   Profiler,
-  TimeoutComponent,
-} from 'shared/ReactTypeOfWork';
-import {Placement, Ref, Update} from 'shared/ReactTypeOfSideEffect';
-import {ProfileMode} from './ReactTypeOfMode';
+  PlaceholderComponent,
+  ForwardRefLazy,
+  PureComponent,
+  PureComponentLazy,
+} from 'shared/ReactWorkTags';
+import {Placement, Ref, Update} from 'shared/ReactSideEffectTags';
 import invariant from 'shared/invariant';
+import {getResultFromResolvedThenable} from 'shared/ReactLazyComponent';
 
 import {
   createInstance,
@@ -60,9 +62,9 @@ import {
   getHostContext,
   popHostContainer,
 } from './ReactFiberHostContext';
-import {recordElapsedActualRenderTime} from './ReactProfilerTimer';
 import {
-  popContextProvider as popLegacyContextProvider,
+  isContextProvider as isLegacyContextProvider,
+  popContext as popLegacyContext,
   popTopLevelContextObject as popTopLevelLegacyContextObject,
 } from './ReactFiberContext';
 import {popProvider} from './ReactFiberNewContext';
@@ -124,13 +126,36 @@ if (supportsMutation) {
   updateHostComponent = function(
     current: Fiber,
     workInProgress: Fiber,
-    updatePayload: null | UpdatePayload,
     type: Type,
-    oldProps: Props,
     newProps: Props,
     rootContainerInstance: Container,
-    currentHostContext: HostContext,
   ) {
+    // If we have an alternate, that means this is an update and we need to
+    // schedule a side-effect to do the updates.
+    const oldProps = current.memoizedProps;
+    if (oldProps === newProps) {
+      // In mutation mode, this is sufficient for a bailout because
+      // we won't touch this node even if children changed.
+      return;
+    }
+
+    // If we get updated because one of our children updated, we don't
+    // have newProps so we'll have to reuse them.
+    // TODO: Split the update API as separate for the props vs. children.
+    // Even better would be if children weren't special cased at all tho.
+    const instance: Instance = workInProgress.stateNode;
+    const currentHostContext = getHostContext();
+    // TODO: Experiencing an error where oldProps is null. Suggests a host
+    // component is hitting the resume path. Figure out why. Possibly
+    // related to `hidden`.
+    const updatePayload = prepareUpdate(
+      instance,
+      type,
+      oldProps,
+      newProps,
+      rootContainerInstance,
+      currentHostContext,
+    );
     // TODO: Type this specific to this type of component.
     workInProgress.updateQueue = (updatePayload: any);
     // If the update payload indicates that there is a change or if there
@@ -209,54 +234,70 @@ if (supportsMutation) {
   updateHostComponent = function(
     current: Fiber,
     workInProgress: Fiber,
-    updatePayload: null | UpdatePayload,
     type: Type,
-    oldProps: Props,
     newProps: Props,
     rootContainerInstance: Container,
-    currentHostContext: HostContext,
   ) {
+    const currentInstance = current.stateNode;
+    const oldProps = current.memoizedProps;
     // If there are no effects associated with this node, then none of our children had any updates.
     // This guarantees that we can reuse all of them.
     const childrenUnchanged = workInProgress.firstEffect === null;
-    const currentInstance = current.stateNode;
+    if (childrenUnchanged && oldProps === newProps) {
+      // No changes, just reuse the existing instance.
+      // Note that this might release a previous clone.
+      workInProgress.stateNode = currentInstance;
+      return;
+    }
+    const recyclableInstance: Instance = workInProgress.stateNode;
+    const currentHostContext = getHostContext();
+    let updatePayload = null;
+    if (oldProps !== newProps) {
+      updatePayload = prepareUpdate(
+        recyclableInstance,
+        type,
+        oldProps,
+        newProps,
+        rootContainerInstance,
+        currentHostContext,
+      );
+    }
     if (childrenUnchanged && updatePayload === null) {
       // No changes, just reuse the existing instance.
       // Note that this might release a previous clone.
       workInProgress.stateNode = currentInstance;
-    } else {
-      let recyclableInstance = workInProgress.stateNode;
-      let newInstance = cloneInstance(
-        currentInstance,
-        updatePayload,
+      return;
+    }
+    let newInstance = cloneInstance(
+      currentInstance,
+      updatePayload,
+      type,
+      oldProps,
+      newProps,
+      workInProgress,
+      childrenUnchanged,
+      recyclableInstance,
+    );
+    if (
+      finalizeInitialChildren(
+        newInstance,
         type,
-        oldProps,
         newProps,
-        workInProgress,
-        childrenUnchanged,
-        recyclableInstance,
-      );
-      if (
-        finalizeInitialChildren(
-          newInstance,
-          type,
-          newProps,
-          rootContainerInstance,
-          currentHostContext,
-        )
-      ) {
-        markUpdate(workInProgress);
-      }
-      workInProgress.stateNode = newInstance;
-      if (childrenUnchanged) {
-        // If there are no other effects in this tree, we need to flag this node as having one.
-        // Even though we're not going to use it for anything.
-        // Otherwise parents won't know that there are new children to propagate upwards.
-        markUpdate(workInProgress);
-      } else {
-        // If children might have changed, we have to add them all to the set.
-        appendAllChildren(newInstance, workInProgress);
-      }
+        rootContainerInstance,
+        currentHostContext,
+      )
+    ) {
+      markUpdate(workInProgress);
+    }
+    workInProgress.stateNode = newInstance;
+    if (childrenUnchanged) {
+      // If there are no other effects in this tree, we need to flag this node as having one.
+      // Even though we're not going to use it for anything.
+      // Otherwise parents won't know that there are new children to propagate upwards.
+      markUpdate(workInProgress);
+    } else {
+      // If children might have changed, we have to add them all to the set.
+      appendAllChildren(newInstance, workInProgress);
     }
   };
   updateHostText = function(
@@ -288,12 +329,9 @@ if (supportsMutation) {
   updateHostComponent = function(
     current: Fiber,
     workInProgress: Fiber,
-    updatePayload: null | UpdatePayload,
     type: Type,
-    oldProps: Props,
     newProps: Props,
     rootContainerInstance: Container,
-    currentHostContext: HostContext,
   ) {
     // Noop
   };
@@ -314,19 +352,23 @@ function completeWork(
 ): Fiber | null {
   const newProps = workInProgress.pendingProps;
 
-  if (enableProfilerTimer) {
-    if (workInProgress.mode & ProfileMode) {
-      recordElapsedActualRenderTime(workInProgress);
-    }
-  }
-
   switch (workInProgress.tag) {
     case FunctionalComponent:
-      return null;
+    case FunctionalComponentLazy:
+      break;
     case ClassComponent: {
-      // We are leaving this subtree, so pop context if any.
-      popLegacyContextProvider(workInProgress);
-      return null;
+      const Component = workInProgress.type;
+      if (isLegacyContextProvider(Component)) {
+        popLegacyContext(workInProgress);
+      }
+      break;
+    }
+    case ClassComponentLazy: {
+      const Component = getResultFromResolvedThenable(workInProgress.type);
+      if (isLegacyContextProvider(Component)) {
+        popLegacyContext(workInProgress);
+      }
+      break;
     }
     case HostRoot: {
       popHostContainer(workInProgress);
@@ -345,43 +387,19 @@ function completeWork(
         workInProgress.effectTag &= ~Placement;
       }
       updateHostContainer(workInProgress);
-      return null;
+      break;
     }
     case HostComponent: {
       popHostContext(workInProgress);
       const rootContainerInstance = getRootHostContainer();
       const type = workInProgress.type;
       if (current !== null && workInProgress.stateNode != null) {
-        // If we have an alternate, that means this is an update and we need to
-        // schedule a side-effect to do the updates.
-        const oldProps = current.memoizedProps;
-        // If we get updated because one of our children updated, we don't
-        // have newProps so we'll have to reuse them.
-        // TODO: Split the update API as separate for the props vs. children.
-        // Even better would be if children weren't special cased at all tho.
-        const instance: Instance = workInProgress.stateNode;
-        const currentHostContext = getHostContext();
-        // TODO: Experiencing an error where oldProps is null. Suggests a host
-        // component is hitting the resume path. Figure out why. Possibly
-        // related to `hidden`.
-        const updatePayload = prepareUpdate(
-          instance,
-          type,
-          oldProps,
-          newProps,
-          rootContainerInstance,
-          currentHostContext,
-        );
-
         updateHostComponent(
           current,
           workInProgress,
-          updatePayload,
           type,
-          oldProps,
           newProps,
           rootContainerInstance,
-          currentHostContext,
         );
 
         if (current.ref !== workInProgress.ref) {
@@ -395,7 +413,7 @@ function completeWork(
               'caused by a bug in React. Please file an issue.',
           );
           // This can happen when we abort work.
-          return null;
+          break;
         }
 
         const currentHostContext = getHostContext();
@@ -451,7 +469,7 @@ function completeWork(
           markRef(workInProgress);
         }
       }
-      return null;
+      break;
     }
     case HostText: {
       let newText = newProps;
@@ -468,7 +486,6 @@ function completeWork(
               'caused by a bug in React. Please file an issue.',
           );
           // This can happen when we abort work.
-          return null;
         }
         const rootContainerInstance = getRootHostContainer();
         const currentHostContext = getHostContext();
@@ -486,28 +503,32 @@ function completeWork(
           );
         }
       }
-      return null;
+      break;
     }
     case ForwardRef:
-      return null;
-    case TimeoutComponent:
-      return null;
+    case ForwardRefLazy:
+      break;
+    case PlaceholderComponent:
+      break;
     case Fragment:
-      return null;
+      break;
     case Mode:
-      return null;
+      break;
     case Profiler:
-      return null;
+      break;
     case HostPortal:
       popHostContainer(workInProgress);
       updateHostContainer(workInProgress);
-      return null;
+      break;
     case ContextProvider:
       // Pop provider fiber
       popProvider(workInProgress);
-      return null;
+      break;
     case ContextConsumer:
-      return null;
+      break;
+    case PureComponent:
+    case PureComponentLazy:
+      break;
     // Error cases
     case IndeterminateComponent:
       invariant(
@@ -524,6 +545,8 @@ function completeWork(
           'React. Please file an issue.',
       );
   }
+
+  return null;
 }
 
 export {completeWork};

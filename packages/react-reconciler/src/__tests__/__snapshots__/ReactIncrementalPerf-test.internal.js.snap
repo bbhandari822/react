@@ -85,18 +85,18 @@ exports[`ReactDebugFiberPerf deduplicates lifecycle names during commit to reduc
 
 ⚛ (Committing Changes)
   ⚛ (Committing Snapshot Effects: 0 Total)
-  ⚛ (Committing Host Effects: 3 Total)
-  ⚛ (Calling Lifecycle Methods: 3 Total)
+  ⚛ (Committing Host Effects: 2 Total)
+  ⚛ (Calling Lifecycle Methods: 2 Total)
     ⚛ B.componentDidUpdate
 "
 `;
 
-exports[`ReactDebugFiberPerf does not include AsyncMode, StrictMode, or Profiler components in measurements 1`] = `
+exports[`ReactDebugFiberPerf does not include ConcurrentMode, StrictMode, or Profiler components in measurements 1`] = `
 "⚛ (Waiting for async callback... will force flush in 5250 ms)
 
 // Mount
 ⚛ (React Tree Reconciliation: Completed Root)
-  ⚛ Profiler(test) [mount]
+  ⚛ Profiler [mount]
     ⚛ Parent [mount]
       ⚛ Child [mount]
 
@@ -257,8 +257,8 @@ exports[`ReactDebugFiberPerf measures deprioritized work 1`] = `
 
 ⚛ (Committing Changes)
   ⚛ (Committing Snapshot Effects: 0 Total)
-  ⚛ (Committing Host Effects: 3 Total)
-  ⚛ (Calling Lifecycle Methods: 2 Total)
+  ⚛ (Committing Host Effects: 1 Total)
+  ⚛ (Calling Lifecycle Methods: 0 Total)
 "
 `;
 
@@ -286,20 +286,18 @@ exports[`ReactDebugFiberPerf recovers from caught errors 1`] = `
 "⚛ (Waiting for async callback... will force flush in 5250 ms)
 
 // Stop on Baddie and restart from Boundary
-⚛ (React Tree Reconciliation: Yielded)
-  ⚛ Parent [mount]
-    ⚛ Boundary [mount]
-      ⚛ Parent [mount]
-        ⚛ Baddie [mount]
-
-⚛ (React Tree Reconciliation: Yielded)
+⚛ (React Tree Reconciliation: Completed Root)
   ⚛ Parent [mount]
     ⛔ Boundary [mount] Warning: An error was thrown inside this error boundary
       ⚛ Parent [mount]
         ⚛ Baddie [mount]
+    ⚛ Boundary [mount]
 
 ⚛ (React Tree Reconciliation: Completed Root)
   ⚛ Parent [mount]
+    ⛔ Boundary [mount] Warning: An error was thrown inside this error boundary
+      ⚛ Parent [mount]
+        ⚛ Baddie [mount]
     ⚛ Boundary [mount]
 
 ⛔ (Committing Changes) Warning: Lifecycle hook scheduled a cascading update
@@ -313,8 +311,8 @@ exports[`ReactDebugFiberPerf recovers from caught errors 1`] = `
 
 ⚛ (Committing Changes)
   ⚛ (Committing Snapshot Effects: 0 Total)
-  ⚛ (Committing Host Effects: 2 Total)
-  ⚛ (Calling Lifecycle Methods: 1 Total)
+  ⚛ (Committing Host Effects: 1 Total)
+  ⚛ (Calling Lifecycle Methods: 0 Total)
 "
 `;
 
@@ -322,15 +320,13 @@ exports[`ReactDebugFiberPerf recovers from fatal errors 1`] = `
 "⚛ (Waiting for async callback... will force flush in 5250 ms)
 
 // Will fatal
-⚛ (React Tree Reconciliation: Yielded)
-  ⚛ Parent [mount]
-    ⚛ Baddie [mount]
-
-⚛ (React Tree Reconciliation: Yielded)
+⚛ (React Tree Reconciliation: Completed Root)
   ⚛ Parent [mount]
     ⚛ Baddie [mount]
 
 ⚛ (React Tree Reconciliation: Completed Root)
+  ⚛ Parent [mount]
+    ⚛ Baddie [mount]
 
 ⚛ (Committing Changes)
   ⚛ (Committing Snapshot Effects: 0 Total)
@@ -361,8 +357,8 @@ exports[`ReactDebugFiberPerf skips parents during setState 1`] = `
 
 ⚛ (Committing Changes)
   ⚛ (Committing Snapshot Effects: 0 Total)
-  ⚛ (Committing Host Effects: 6 Total)
-  ⚛ (Calling Lifecycle Methods: 6 Total)
+  ⚛ (Committing Host Effects: 2 Total)
+  ⚛ (Calling Lifecycle Methods: 2 Total)
 "
 `;
 
@@ -406,8 +402,6 @@ exports[`ReactDebugFiberPerf warns if an in-progress update is interrupted 1`] =
 exports[`ReactDebugFiberPerf warns if async work expires (starvation) 1`] = `
 "⛔ (Waiting for async callback... will force flush in 5250 ms) Warning: React was blocked by main thread
 
-⚛ (React Tree Reconciliation: Yielded)
-
 ⚛ (React Tree Reconciliation: Completed Root)
   ⚛ Foo [mount]
 
@@ -437,8 +431,8 @@ exports[`ReactDebugFiberPerf warns on cascading renders from setState 1`] = `
 
 ⚛ (Committing Changes)
   ⚛ (Committing Snapshot Effects: 0 Total)
-  ⚛ (Committing Host Effects: 2 Total)
-  ⚛ (Calling Lifecycle Methods: 2 Total)
+  ⚛ (Committing Host Effects: 1 Total)
+  ⚛ (Calling Lifecycle Methods: 1 Total)
 "
 `;
 

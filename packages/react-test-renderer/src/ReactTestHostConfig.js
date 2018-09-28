@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-present, Facebook, Inc.
+ * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -7,6 +7,7 @@
  * @flow
  */
 
+import warning from 'shared/warning';
 import * as TestRendererScheduling from './ReactTestRendererScheduling';
 
 export type Type = string;
@@ -32,6 +33,8 @@ export type PublicInstance = Instance | TextInstance;
 export type HostContext = Object;
 export type UpdatePayload = Object;
 export type ChildSet = void; // Unused
+export type TimeoutHandle = TimeoutID;
+export type NoTimeout = -1;
 
 export * from 'shared/HostConfigWithNoPersistence';
 export * from 'shared/HostConfigWithNoHydration';
@@ -60,6 +63,15 @@ export function appendChild(
   parentInstance: Instance | Container,
   child: Instance | TextInstance,
 ): void {
+  if (__DEV__) {
+    warning(
+      Array.isArray(parentInstance.children),
+      'An invalid container has been provided. ' +
+        'This may indicate that another renderer is being used in addition to the test renderer. ' +
+        '(For example, ReactDOM.createPortal inside of a ReactTestRenderer tree.) ' +
+        'This is not supported.',
+    );
+  }
   const index = parentInstance.children.indexOf(child);
   if (index !== -1) {
     parentInstance.children.splice(index, 1);
@@ -178,7 +190,7 @@ export function createTextInstance(
   };
 }
 
-export const isPrimaryRenderer = true;
+export const isPrimaryRenderer = false;
 // This approach enables `now` to be mocked by tests,
 // Even after the reconciler has initialized and read host config values.
 export const now = () => TestRendererScheduling.nowImplementation();
@@ -186,6 +198,10 @@ export const scheduleDeferredCallback =
   TestRendererScheduling.scheduleDeferredCallback;
 export const cancelDeferredCallback =
   TestRendererScheduling.cancelDeferredCallback;
+
+export const scheduleTimeout = setTimeout;
+export const cancelTimeout = clearTimeout;
+export const noTimeout = -1;
 
 // -------------------
 //     Mutation

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-present, Facebook, Inc.
+ * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -1406,5 +1406,16 @@ describe('ReactShallowRenderer', () => {
     expect(log).toEqual([]);
     instance.setState(state => ({count: state.count + 1}));
     expect(log).toEqual(['render']);
+  });
+
+  it('should not get this in a functional component', () => {
+    const logs = [];
+    function Foo() {
+      logs.push(this);
+      return <div>foo</div>;
+    }
+    const shallowRenderer = createRenderer();
+    shallowRenderer.render(<Foo foo="bar" />);
+    expect(logs).toEqual([undefined]);
   });
 });

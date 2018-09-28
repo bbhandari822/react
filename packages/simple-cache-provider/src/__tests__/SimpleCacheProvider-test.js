@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-present, Facebook, Inc.
+ * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -149,14 +149,17 @@ describe('SimpleCacheProvider', () => {
     }
 
     if (__DEV__) {
-      expect(fn).toWarnDev([
-        'Invalid resourceType: Expected a symbol, object, or function, but ' +
-          'instead received: foo. Strings and numbers are not permitted as ' +
-          'resource types.',
-        'Invalid resourceType: Expected a symbol, object, or function, but ' +
-          'instead received: 123. Strings and numbers are not permitted as ' +
-          'resource types.',
-      ]);
+      expect(fn).toWarnDev(
+        [
+          'Invalid resourceType: Expected a symbol, object, or function, but ' +
+            'instead received: foo. Strings and numbers are not permitted as ' +
+            'resource types.',
+          'Invalid resourceType: Expected a symbol, object, or function, but ' +
+            'instead received: 123. Strings and numbers are not permitted as ' +
+            'resource types.',
+        ],
+        {withoutStack: true},
+      );
     } else {
       fn();
     }
@@ -179,12 +182,15 @@ describe('SimpleCacheProvider', () => {
     }
 
     if (__DEV__) {
-      expect(fn).toWarnDev([
-        'preload: Invalid key type. Expected a string, number, symbol, or ' +
-          'boolean, but instead received: 5,5\n\n' +
-          'To use non-primitive values as keys, you must pass a hash ' +
-          'function as the second argument to createResource().',
-      ]);
+      expect(fn).toWarnDev(
+        [
+          'preload: Invalid key type. Expected a string, number, symbol, or ' +
+            'boolean, but instead received: 5,5\n\n' +
+            'To use non-primitive values as keys, you must pass a hash ' +
+            'function as the second argument to createResource().',
+        ],
+        {withoutStack: true},
+      );
     } else {
       fn();
     }

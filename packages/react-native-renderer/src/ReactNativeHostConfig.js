@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-present, Facebook, Inc.
+ * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -31,7 +31,7 @@ export type Container = number;
 export type Instance = {
   _children: Array<Instance | number>,
   _nativeTag: number,
-  viewConfig: ReactNativeBaseComponentViewConfig,
+  viewConfig: ReactNativeBaseComponentViewConfig<>,
 };
 export type TextInstance = number;
 export type HydratableInstance = Instance | TextInstance;
@@ -41,6 +41,9 @@ export type HostContext = $ReadOnly<{|
 |}>;
 export type UpdatePayload = Object; // Unused
 export type ChildSet = void; // Unused
+
+export type TimeoutHandle = TimeoutID;
+export type NoTimeout = -1;
 
 const UPDATE_SIGNAL = {};
 if (__DEV__) {
@@ -235,6 +238,10 @@ export const scheduleDeferredCallback =
   ReactNativeFrameScheduling.scheduleDeferredCallback;
 export const cancelDeferredCallback =
   ReactNativeFrameScheduling.cancelDeferredCallback;
+
+export const scheduleTimeout = setTimeout;
+export const cancelTimeout = clearTimeout;
+export const noTimeout = -1;
 
 export function shouldDeprioritizeSubtree(type: string, props: Props): boolean {
   return false;

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-present, Facebook, Inc.
+ * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -17,7 +17,9 @@ import {findCurrentFiberUsingSlowPath} from 'react-reconciler/reflection';
 import {
   Fragment,
   FunctionalComponent,
+  FunctionalComponentLazy,
   ClassComponent,
+  ClassComponentLazy,
   HostComponent,
   HostPortal,
   HostText,
@@ -27,7 +29,10 @@ import {
   Mode,
   ForwardRef,
   Profiler,
-} from 'shared/ReactTypeOfWork';
+  ForwardRefLazy,
+  PureComponent,
+  PureComponentLazy,
+} from 'shared/ReactWorkTags';
 import invariant from 'shared/invariant';
 import ReactVersion from 'shared/ReactVersion';
 
@@ -36,7 +41,7 @@ import * as TestRendererScheduling from './ReactTestRendererScheduling';
 
 type TestRendererOptions = {
   createNodeMock: (element: React$Element<any>) => any,
-  unstable_isAsync: boolean,
+  unstable_isConcurrent: boolean,
 };
 
 type ReactTestRendererJSON = {|
@@ -148,6 +153,17 @@ function toTree(node: ?Fiber) {
         instance: node.stateNode,
         rendered: childrenToTree(node.child),
       };
+    case ClassComponentLazy: {
+      const thenable = node.type;
+      const type = thenable._reactResult;
+      return {
+        nodeType: 'component',
+        type,
+        props: {...node.memoizedProps},
+        instance: node.stateNode,
+        rendered: childrenToTree(node.child),
+      };
+    }
     case FunctionalComponent:
       return {
         nodeType: 'component',
@@ -156,6 +172,17 @@ function toTree(node: ?Fiber) {
         instance: null,
         rendered: childrenToTree(node.child),
       };
+    case FunctionalComponentLazy: {
+      const thenable = node.type;
+      const type = thenable._reactResult;
+      return {
+        nodeType: 'component',
+        type: type,
+        props: {...node.memoizedProps},
+        instance: node.stateNode,
+        rendered: childrenToTree(node.child),
+      };
+    }
     case HostComponent: {
       return {
         nodeType: 'host',
@@ -173,6 +200,9 @@ function toTree(node: ?Fiber) {
     case Mode:
     case Profiler:
     case ForwardRef:
+    case ForwardRefLazy:
+    case PureComponent:
+    case PureComponentLazy:
       return childrenToTree(node.child);
     default:
       invariant(
@@ -183,24 +213,16 @@ function toTree(node: ?Fiber) {
   }
 }
 
-const fiberToWrapper = new WeakMap();
-function wrapFiber(fiber: Fiber): ReactTestInstance {
-  let wrapper = fiberToWrapper.get(fiber);
-  if (wrapper === undefined && fiber.alternate !== null) {
-    wrapper = fiberToWrapper.get(fiber.alternate);
-  }
-  if (wrapper === undefined) {
-    wrapper = new ReactTestInstance(fiber);
-    fiberToWrapper.set(fiber, wrapper);
-  }
-  return wrapper;
-}
-
 const validWrapperTypes = new Set([
   FunctionalComponent,
+  FunctionalComponentLazy,
   ClassComponent,
+  ClassComponentLazy,
   HostComponent,
   ForwardRef,
+  ForwardRefLazy,
+  PureComponent,
+  PureComponentLazy,
   // Normally skipped, but used when there's more than one root child.
   HostRoot,
 ]);
@@ -403,13 +425,13 @@ function propsMatch(props: Object, filter: Object): boolean {
 const ReactTestRendererFiber = {
   create(element: React$Element<any>, options: TestRendererOptions) {
     let createNodeMock = defaultTestOptions.createNodeMock;
-    let isAsync = false;
+    let isConcurrent = false;
     if (typeof options === 'object' && options !== null) {
       if (typeof options.createNodeMock === 'function') {
         createNodeMock = options.createNodeMock;
       }
-      if (options.unstable_isAsync === true) {
-        isAsync = true;
+      if (options.unstable_isConcurrent === true) {
+        isConcurrent = true;
       }
     }
     let container = {
@@ -419,7 +441,7 @@ const ReactTestRendererFiber = {
     };
     let root: FiberRoot | null = TestRenderer.createContainer(
       container,
-      isAsync,
+      isConcurrent,
       false,
     );
     invariant(root != null, 'something went wrong');
@@ -466,14 +488,14 @@ const ReactTestRendererFiber = {
         }
         return TestRenderer.getPublicRootInstance(root);
       },
+
       unstable_flushAll: TestRendererScheduling.flushAll,
-      unstable_flushSync(fn: Function) {
-        return TestRendererScheduling.withCleanYields(() => {
-          TestRenderer.flushSync(fn);
-        });
+      unstable_flushSync<T>(fn: () => T): T {
+        TestRendererScheduling.clearYields();
+        return TestRenderer.flushSync(fn);
       },
-      unstable_flushThrough: TestRendererScheduling.flushThrough,
-      unstable_yield: TestRendererScheduling.yieldValue,
+      unstable_flushNumberOfYields: TestRendererScheduling.flushNumberOfYields,
+      unstable_clearYields: TestRendererScheduling.clearYields,
     };
 
     Object.defineProperty(
@@ -504,12 +526,28 @@ const ReactTestRendererFiber = {
     return entry;
   },
 
+  unstable_yield: TestRendererScheduling.yieldValue,
+  unstable_clearYields: TestRendererScheduling.clearYields,
+
   /* eslint-disable camelcase */
   unstable_batchedUpdates: batchedUpdates,
   /* eslint-enable camelcase */
 
   unstable_setNowImplementation: TestRendererScheduling.setNowImplementation,
 };
+
+const fiberToWrapper = new WeakMap();
+function wrapFiber(fiber: Fiber): ReactTestInstance {
+  let wrapper = fiberToWrapper.get(fiber);
+  if (wrapper === undefined && fiber.alternate !== null) {
+    wrapper = fiberToWrapper.get(fiber.alternate);
+  }
+  if (wrapper === undefined) {
+    wrapper = new ReactTestInstance(fiber);
+    fiberToWrapper.set(fiber, wrapper);
+  }
+  return wrapper;
+}
 
 // Enable ReactTestRenderer to be used to test DevTools integration.
 TestRenderer.injectIntoDevTools({

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-present, Facebook, Inc.
+ * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -15,7 +15,10 @@ import type {
   ReactNativeBaseComponentViewConfig,
 } from './ReactNativeTypes';
 
-import {mountSafeCallback, warnForStyleProps} from './NativeMethodsMixinUtils';
+import {
+  mountSafeCallback_NOT_REALLY_SAFE,
+  warnForStyleProps,
+} from './NativeMethodsMixinUtils';
 import * as ReactNativeAttributePayload from './ReactNativeAttributePayload';
 import * as ReactNativeFrameScheduling from './ReactNativeFrameScheduling';
 import * as ReactNativeViewConfigRegistry from 'ReactNativeViewConfigRegistry';
@@ -66,6 +69,9 @@ export type HostContext = $ReadOnly<{|
 |}>;
 export type UpdatePayload = Object;
 
+export type TimeoutHandle = TimeoutID;
+export type NoTimeout = -1;
+
 // TODO: Remove this conditional once all changes have propagated.
 if (registerEventHandler) {
   /**
@@ -79,12 +85,12 @@ if (registerEventHandler) {
  */
 class ReactFabricHostComponent {
   _nativeTag: number;
-  viewConfig: ReactNativeBaseComponentViewConfig;
+  viewConfig: ReactNativeBaseComponentViewConfig<>;
   currentProps: Props;
 
   constructor(
     tag: number,
-    viewConfig: ReactNativeBaseComponentViewConfig,
+    viewConfig: ReactNativeBaseComponentViewConfig<>,
     props: Props,
   ) {
     this._nativeTag = tag;
@@ -101,13 +107,16 @@ class ReactFabricHostComponent {
   }
 
   measure(callback: MeasureOnSuccessCallback) {
-    UIManager.measure(this._nativeTag, mountSafeCallback(this, callback));
+    UIManager.measure(
+      this._nativeTag,
+      mountSafeCallback_NOT_REALLY_SAFE(this, callback),
+    );
   }
 
   measureInWindow(callback: MeasureInWindowOnSuccessCallback) {
     UIManager.measureInWindow(
       this._nativeTag,
-      mountSafeCallback(this, callback),
+      mountSafeCallback_NOT_REALLY_SAFE(this, callback),
     );
   }
 
@@ -119,8 +128,8 @@ class ReactFabricHostComponent {
     UIManager.measureLayout(
       this._nativeTag,
       relativeToNativeNode,
-      mountSafeCallback(this, onFail),
-      mountSafeCallback(this, onSuccess),
+      mountSafeCallback_NOT_REALLY_SAFE(this, onFail),
+      mountSafeCallback_NOT_REALLY_SAFE(this, onSuccess),
     );
   }
 
@@ -324,6 +333,10 @@ export const scheduleDeferredCallback =
 export const cancelDeferredCallback =
   ReactNativeFrameScheduling.cancelDeferredCallback;
 
+export const scheduleTimeout = setTimeout;
+export const cancelTimeout = clearTimeout;
+export const noTimeout = -1;
+
 // -------------------
 //     Persistence
 // -------------------
@@ -344,23 +357,15 @@ export function cloneInstance(
   let clone;
   if (keepChildren) {
     if (updatePayload !== null) {
-      clone = cloneNodeWithNewProps(
-        node,
-        updatePayload,
-        internalInstanceHandle,
-      );
+      clone = cloneNodeWithNewProps(node, updatePayload);
     } else {
-      clone = cloneNode(node, internalInstanceHandle);
+      clone = cloneNode(node);
     }
   } else {
     if (updatePayload !== null) {
-      clone = cloneNodeWithNewChildrenAndProps(
-        node,
-        updatePayload,
-        internalInstanceHandle,
-      );
+      clone = cloneNodeWithNewChildrenAndProps(node, updatePayload);
     } else {
-      clone = cloneNodeWithNewChildren(node, internalInstanceHandle);
+      clone = cloneNodeWithNewChildren(node);
     }
   }
   return {

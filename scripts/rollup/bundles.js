@@ -3,6 +3,7 @@
 const bundleTypes = {
   UMD_DEV: 'UMD_DEV',
   UMD_PROD: 'UMD_PROD',
+  UMD_PROFILING: 'UMD_PROFILING',
   NODE_DEV: 'NODE_DEV',
   NODE_PROD: 'NODE_PROD',
   NODE_PROFILING: 'NODE_PROFILING',
@@ -19,6 +20,7 @@ const bundleTypes = {
 
 const UMD_DEV = bundleTypes.UMD_DEV;
 const UMD_PROD = bundleTypes.UMD_PROD;
+const UMD_PROFILING = bundleTypes.UMD_PROFILING;
 const NODE_DEV = bundleTypes.NODE_DEV;
 const NODE_PROD = bundleTypes.NODE_PROD;
 const NODE_PROFILING = bundleTypes.NODE_PROFILING;
@@ -58,10 +60,12 @@ const bundles = [
     bundleTypes: [
       UMD_DEV,
       UMD_PROD,
+      UMD_PROFILING,
       NODE_DEV,
       NODE_PROD,
       FB_WWW_DEV,
       FB_WWW_PROD,
+      FB_WWW_PROFILING,
     ],
     moduleType: ISOMORPHIC,
     entry: 'react',
@@ -75,6 +79,7 @@ const bundles = [
     bundleTypes: [
       UMD_DEV,
       UMD_PROD,
+      UMD_PROFILING,
       NODE_DEV,
       NODE_PROD,
       NODE_PROFILING,
@@ -380,18 +385,27 @@ const bundles = [
 
   /******* React Scheduler (experimental) *******/
   {
-    label: 'react-scheduler',
+    label: 'scheduler',
+    bundleTypes: [NODE_DEV, NODE_PROD, FB_WWW_DEV, FB_WWW_PROD],
+    moduleType: ISOMORPHIC,
+    entry: 'scheduler',
+    global: 'Scheduler',
+    externals: [],
+  },
+
+  {
+    label: 'scheduler-tracing',
     bundleTypes: [
-      UMD_DEV,
-      UMD_PROD,
-      NODE_DEV,
-      NODE_PROD,
       FB_WWW_DEV,
       FB_WWW_PROD,
+      FB_WWW_PROFILING,
+      NODE_DEV,
+      NODE_PROD,
+      NODE_PROFILING,
     ],
     moduleType: ISOMORPHIC,
-    entry: 'react-scheduler',
-    global: 'ReactScheduler',
+    entry: 'scheduler/tracing',
+    global: 'SchedulerTracing',
     externals: [],
   },
 ];
